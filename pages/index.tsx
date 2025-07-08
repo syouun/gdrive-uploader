@@ -1,23 +1,24 @@
-import { useEffect, useState, FormEvent } from "react";
+/* pages/index.tsx */
 import { useSession, signIn, signOut } from "next-auth/react";
+import { FormEvent, useState } from "react";
 
 export default function Home() {
-  const sessionHook = useSession();
-  const [session, setSession] = useState<any>(null);
-  const [status, setStatus] = useState<"loading" | "unauthenticated" | "authenticated">("loading");
-
+  // NextAuth のセッション情報と認証状態
+  const { data: session, status } = useSession();
+  // アップロード処理中フラグ
   const [isUploading, setIsUploading] = useState(false);
 
-  useEffect(() => {
-    setSession(sessionHook.data);
-    setStatus(sessionHook.status);
-  }, [sessionHook]);
-
+  /** Google Drive へファイルをアップロード */
   const handleUpload = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const target = e.target as HTMLFormElement & { file: HTMLInputElement };
-    const file = target.file.files?.[0];
-    if (!file) return alert("ファイルを選択してください");
+
+    // <input type="file" name="file" /> を取得してファイルを取り出す
+    const fileInput = e.currentTarget.elements.namedItem("file") as HTMLInputElement;
+    const file = fileInput?.files?.[0];
+    if (!file) {
+      alert("ファイルを選択してください");
+      return;
+    }
 
     const formData = new FormData();
     formData.append("file", file);
@@ -26,17 +27,23 @@ export default function Home() {
       setIsUploading(true);
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       if (!res.ok) throw new Error(await res.text());
-      const { fileId } = await res.json();
+
+      const { fileId } = (await res.json()) as { fileId: string };
       alert(`アップロード成功！ファイルID: ${fileId}`);
     } catch (err) {
-      alert(`アップロード失敗: ${err}`);
+      alert(`アップロード失敗: ${String(err)}`);
     } finally {
       setIsUploading(false);
     }
   };
 
+  /* --------- 画面レンダリング --------- */
+
+  // セッション取得中
   if (status === "loading") return <p>Loading...</p>;
-  if (!session)
+
+  // 未認証：ログインボタンのみ表示
+  if (status === "unauthenticated" || !session) {
     return (
       <main className="flex flex-col items-center gap-4 py-10">
         <h1 className="text-xl font-bold">Google Drive Uploader</h1>
@@ -48,7 +55,9 @@ export default function Home() {
         </button>
       </main>
     );
+  }
 
+  // 認証済み：アップロードフォームを表示
   return (
     <main className="flex flex-col items-center gap-4 py-10">
       <h1 className="text-xl font-bold">Google Drive Uploader</h1>
