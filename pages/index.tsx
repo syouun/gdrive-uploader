@@ -1,17 +1,16 @@
 import { signIn, signOut } from "next-auth/react";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "./api/auth/[...nextauth]";
-import type { Session } from "next-auth";
 import type { GetServerSideProps } from "next";
+import type { Session } from "next-auth";
+import { authOptions } from "./api/auth/[...nextauth]";
 import { useState, FormEvent } from "react";
 
-/* -------- 画面コンポーネント -------- */
 type Props = { session: Session | null };
 
 export default function Home({ session }: Props) {
   const [isUploading, setIsUploading] = useState(false);
 
-  /* Google Drive へファイルを POST */
+  /* アップロード処理 */
   const handleUpload = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fileInput = e.currentTarget.elements.namedItem("file") as HTMLInputElement | null;
@@ -34,7 +33,7 @@ export default function Home({ session }: Props) {
     }
   };
 
-  /* 認証前ビュー ------------------------- */
+  /* 未ログイン画面 */
   if (!session) {
     return (
       <main className="flex flex-col items-center gap-4 py-10">
@@ -49,7 +48,7 @@ export default function Home({ session }: Props) {
     );
   }
 
-  /* 認証後ビュー ------------------------- */
+  /* ログイン済み画面 */
   return (
     <main className="flex flex-col items-center gap-4 py-10">
       <h1 className="text-xl font-bold">Google Drive Uploader</h1>
@@ -76,8 +75,8 @@ export default function Home({ session }: Props) {
   );
 }
 
-/* -------- SSR でセッションを取得 -------- */
-export const getServerSideProps: GetServerSideProps<Props> = async (context) => {
-  const session = await getServerSession(context.req, context.res, authOptions);
+/* -------- サーバーサイドでセッション注入 -------- */
+export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
+  const session = await getServerSession(ctx.req, ctx.res, authOptions);
   return { props: { session } };
 };

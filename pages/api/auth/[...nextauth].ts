@@ -1,8 +1,7 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import "next-auth/jwt";
 
-/* ===== 型拡張 ===== */
+/* === 型拡張 === */
 declare module "next-auth/jwt" {
   interface JWT {
     accessToken?: string;
@@ -14,7 +13,7 @@ declare module "next-auth" {
   }
 }
 
-/* ===== 認証オプション ===== */
+/* === 共通設定 === */
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
