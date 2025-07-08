@@ -1,21 +1,21 @@
-import NextAuth from "next-auth";
+import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import "next-auth/jwt";
 
+/* ===== 型拡張 ===== */
 declare module "next-auth/jwt" {
   interface JWT {
     accessToken?: string;
   }
 }
-
 declare module "next-auth" {
   interface Session {
     accessToken?: string;
   }
 }
-/* ── 🔼 追加ここまで ─────────────────── */
 
-export default NextAuth({
+/* ===== 認証オプション ===== */
+export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -29,9 +29,7 @@ export default NextAuth({
   ],
   callbacks: {
     async jwt({ token, account }) {
-      if (account) {
-        token.accessToken = account.access_token;
-      }
+      if (account) token.accessToken = account.access_token;
       return token;
     },
     async session({ session, token }) {
@@ -39,4 +37,6 @@ export default NextAuth({
       return session;
     },
   },
-});
+};
+
+export default NextAuth(authOptions);

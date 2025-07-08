@@ -1,24 +1,22 @@
-/* pages/index.tsx */
-import { useSession, signIn, signOut } from "next-auth/react";
-import { FormEvent, useState } from "react";
+import { signIn, signOut } from "next-auth/react";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "./api/auth/[...nextauth]";
+import type { Session } from "next-auth";
+import type { GetServerSideProps } from "next";
+import { useState, FormEvent } from "react";
 
-export default function Home() {
-  // NextAuth のセッション情報と認証状態
-  const { data: session, status } = useSession();
-  // アップロード処理中フラグ
+/* -------- 画面コンポーネント -------- */
+type Props = { session: Session | null };
+
+export default function Home({ session }: Props) {
   const [isUploading, setIsUploading] = useState(false);
 
-  /** Google Drive へファイルをアップロード */
+  /* Google Drive へファイルを POST */
   const handleUpload = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    // <input type="file" name="file" /> を取得してファイルを取り出す
-    const fileInput = e.currentTarget.elements.namedItem("file") as HTMLInputElement;
+    const fileInput = e.currentTarget.elements.namedItem("file") as HTMLInputElement | null;
     const file = fileInput?.files?.[0];
-    if (!file) {
-      alert("ファイルを選択してください");
-      return;
-    }
+    if (!file) return alert("ファイルを選択してください");
 
     const formData = new FormData();
     formData.append("file", file);
@@ -27,7 +25,6 @@ export default function Home() {
       setIsUploading(true);
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       if (!res.ok) throw new Error(await res.text());
-
       const { fileId } = (await res.json()) as { fileId: string };
       alert(`アップロード成功！ファイルID: ${fileId}`);
     } catch (err) {
@@ -37,13 +34,8 @@ export default function Home() {
     }
   };
 
-  /* --------- 画面レンダリング --------- */
-
-  // セッション取得中
-  if (status === "loading") return <p>Loading...</p>;
-
-  // 未認証：ログインボタンのみ表示
-  if (status === "unauthenticated" || !session) {
+  /* 認証前ビュー ------------------------- */
+  if (!session) {
     return (
       <main className="flex flex-col items-center gap-4 py-10">
         <h1 className="text-xl font-bold">Google Drive Uploader</h1>
@@ -57,7 +49,7 @@ export default function Home() {
     );
   }
 
-  // 認証済み：アップロードフォームを表示
+  /* 認証後ビュー ------------------------- */
   return (
     <main className="flex flex-col items-center gap-4 py-10">
       <h1 className="text-xl font-bold">Google Drive Uploader</h1>
@@ -83,3 +75,9 @@ export default function Home() {
     </main>
   );
 }
+
+/* -------- SSR でセッションを取得 -------- */
+export const getServerSideProps: GetServerSideProps<Props> = async (context) => {
+  const session = await getServerSession(context.req, context.res, authOptions);
+  return { props: { session } };
+};

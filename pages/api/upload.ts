@@ -1,34 +1,23 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { getToken } from "next-auth/jwt";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "./auth/[...nextauth]";      // 🔗 認証設定を共有
 import { google } from "googleapis";
 import formidable, { File } from "formidable";
 import fs from "fs";
 
+/* --- multipart 受信設定 --- */
 export const config = {
-  api: {
-    bodyParser: false,          // multipart/form-data をそのまま受け取る
-    sizeLimit: "4mb",           // Vercel 無料枠の上限以下に設定（任意）
-  },
+  api: { bodyParser: false, sizeLimit: "4mb" },          // Vercel 無料枠上限
 };
 
-// ------------------------------------
-// POST /api/upload
-// ------------------------------------
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method Not Allowed" });
-  }
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
 
-  // ① NextAuth で保存された JWT からアクセストークンを取得
-  const token = await getToken({ req });
-  if (!token?.accessToken) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
+  /* ① セッションからアクセストークン取得 ---------------------- */
+  const session = await getServerSession(req, res, authOptions);
+  if (!session?.accessToken) return res.status(401).json({ error: "Unauthorized" });
 
-  // ② フォームデータ解析
+  /* ② フォームデータ解析 ------------------------------------- */
   const form = formidable({ multiples: false, maxFiles: 1 });
   form.parse(req, async (err, _fields, files) => {
     if (err) return res.status(400).json({ error: "Form parse error" });
@@ -37,13 +26,11 @@ export default async function handler(
     if (!uploaded) return res.status(400).json({ error: "No file sent" });
 
     try {
-      // ③ アクセストークンを OAuth2 クライアントへセット
+      /* ③ Google Drive へアップロード ------------------------- */
       const oauth2 = new google.auth.OAuth2();
-      oauth2.setCredentials({ access_token: token.accessToken as string });
+      oauth2.setCredentials({ access_token: session.accessToken });
 
       const drive = google.drive({ version: "v3", auth: oauth2 });
-
-      // ④ Google Drive にアップロード
       const response = await drive.files.create({
         requestBody: {
           name: uploaded.originalFilename ?? "upload",
@@ -61,8 +48,7 @@ export default async function handler(
       console.error(uploadErr);
       return res.status(500).json({ error: "Drive upload failed" });
     } finally {
-      // Vercel の一時フォルダーを掃除
-      fs.unlink(uploaded.filepath, () => {});
+      fs.unlink(uploaded.filepath, () => {});            // 一時ファイル掃除
     }
   });
 }
