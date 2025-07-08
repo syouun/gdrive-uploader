@@ -40,7 +40,7 @@ export default function Home({ session }: Props) {
         <h1 className="text-xl font-bold">Google Drive Uploader</h1>
         <button
           className="rounded bg-blue-600 px-4 py-2 font-semibold text-white hover:opacity-90"
-          onClick={() => signIn("google")}
+          onClick={() => signIn("My Drive")}
         >
           Googleでログイン
         </button>
@@ -61,7 +61,7 @@ export default function Home({ session }: Props) {
           className="rounded bg-green-600 px-4 py-2 font-semibold text-white hover:opacity-90 disabled:opacity-50"
           disabled={isUploading}
         >
-          {isUploading ? "アップロード中..." : "Google Drive にアップロード"}
+          {isUploading ? "アップロード中..." : "My Drive に登録"}
         </button>
       </form>
 
