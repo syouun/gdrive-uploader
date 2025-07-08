@@ -20,7 +20,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   /* ② ファイル解析 */
   const form = formidable({ multiples: false, maxFiles: 1 });
   form.parse(req, async (err, _fields, files) => {
-    if (err) return res.status(400).json({ error: "Form parse error" });
+    if (err) {
+      console.error('[formidable] parse error', err);
+      return res.status(400).json({ error: 'Form parse error' });
+    }
 
     const uploaded = Array.isArray(files.file) ? files.file[0] : (files.file as File | undefined);
     if (!uploaded) return res.status(400).json({ error: "No file sent" });
