@@ -1,11 +1,18 @@
-import { FormEvent, useState } from "react";
+import { useEffect, useState, FormEvent } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 
 export default function Home() {
-  const { data: session, status } = useSession();
+  const sessionHook = useSession();
+  const [session, setSession] = useState<any>(null);
+  const [status, setStatus] = useState<"loading" | "unauthenticated" | "authenticated">("loading");
+
   const [isUploading, setIsUploading] = useState(false);
 
-  // アップロード処理
+  useEffect(() => {
+    setSession(sessionHook.data);
+    setStatus(sessionHook.status);
+  }, [sessionHook]);
+
   const handleUpload = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const target = e.target as HTMLFormElement & { file: HTMLInputElement };
@@ -28,7 +35,6 @@ export default function Home() {
     }
   };
 
-  // ログイン前
   if (status === "loading") return <p>Loading...</p>;
   if (!session)
     return (
@@ -43,16 +49,12 @@ export default function Home() {
       </main>
     );
 
-  // ログイン後
   return (
     <main className="flex flex-col items-center gap-4 py-10">
       <h1 className="text-xl font-bold">Google Drive Uploader</h1>
       <p>こんにちは、{session.user?.name} さん</p>
 
-      <form
-        onSubmit={handleUpload}
-        className="flex flex-col items-center gap-2"
-      >
+      <form onSubmit={handleUpload} className="flex flex-col items-center gap-2">
         <input type="file" name="file" className="border p-2" />
         <button
           type="submit"
