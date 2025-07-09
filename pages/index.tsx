@@ -10,10 +10,12 @@ type Props = { session: Session | null };
 export default function Home({ session }: Props) {
   const [isUploading, setIsUploading] = useState(false);
 
-  /* アップロード処理 */
+  /* ファイル登録処理 */
   const handleUpload = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const fileInput = e.currentTarget.elements.namedItem("file") as HTMLInputElement | null;
+    const fileInput = e.currentTarget.elements.namedItem(
+      "file"
+    ) as HTMLInputElement | null;
     const file = fileInput?.files?.[0];
     if (!file) return alert("ファイルを選択してください");
 
@@ -25,9 +27,9 @@ export default function Home({ session }: Props) {
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       if (!res.ok) throw new Error(await res.text());
       const { fileId } = (await res.json()) as { fileId: string };
-      alert(`アップロード成功！ファイルID: ${fileId}`);
+      alert(`登録成功！ファイル ID: ${fileId}`);
     } catch (err) {
-      alert(`アップロード失敗: ${String(err)}`);
+      alert(`登録失敗: ${String(err)}`);
     } finally {
       setIsUploading(false);
     }
@@ -37,12 +39,12 @@ export default function Home({ session }: Props) {
   if (!session) {
     return (
       <main className="flex flex-col items-center gap-4 py-10">
-        <h1 className="text-xl font-bold">Google Drive Uploader</h1>
+        <h1 className="text-xl font-bold">マイドライブへの登録</h1>
         <button
           className="rounded bg-blue-600 px-4 py-2 font-semibold text-white hover:opacity-90"
           onClick={() => signIn("google")}
         >
-          Googleでログイン
+          マイドライブにログイン
         </button>
       </main>
     );
@@ -51,7 +53,7 @@ export default function Home({ session }: Props) {
   /* ログイン済み画面 */
   return (
     <main className="flex flex-col items-center gap-4 py-10">
-      <h1 className="text-xl font-bold">Google Drive Uploader</h1>
+      <h1 className="text-xl font-bold">マイドライブへの登録</h1>
       <p>こんにちは、{session.user?.name} さん</p>
 
       <form onSubmit={handleUpload} className="flex flex-col items-center gap-2">
@@ -61,7 +63,7 @@ export default function Home({ session }: Props) {
           className="rounded bg-green-600 px-4 py-2 font-semibold text-white hover:opacity-90 disabled:opacity-50"
           disabled={isUploading}
         >
-          {isUploading ? "アップロード中..." : "Google Drive にアップロード"}
+          {isUploading ? "登録中..." : "マイドライブに登録"}
         </button>
       </form>
 
