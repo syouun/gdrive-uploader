@@ -1,8 +1,16 @@
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useState, useEffect, FormEvent } from "react";
+import type { Session } from "next-auth";
+
+// ── ★ フロント側セッション拡張型 ───────────
+type ExtendedSession = Session & {
+  accessToken?: string;
+  error?: string;
+};
 
 export default function Home() {
-  const { data: session } = useSession();
+  // as でキャストしてエラー回避
+  const { data: session } = useSession() as { data: ExtendedSession | null };
   const [isUploading, setIsUploading] = useState(false);
 
   // トークン更新失敗時は自動リダイレクト
