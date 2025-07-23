@@ -1,37 +1,49 @@
-// pages/api/upload.ts
 //--------------------------------------------------------------
 // Google Drive にファイルをアップロードする Next.js API Route
-//   - Next.js 15 / Node 22 で確認
-//   - Formidable v3 を利用（0 byte も許可）
-//   - Vercel Functions の制限に合わせて 4 MB 強まで
 //--------------------------------------------------------------
-
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth/[...nextauth]";
+import type { Session } from "next-auth";
 
 import formidable, { File as FormidableFile } from "formidable";
 import fs from "fs/promises";
 import { createReadStream } from "fs";
 import { google } from "googleapis";
 
+// ── ★ セッション拡張型 ────────────────────────────────
+type ExtendedSession = Session & {
+  accessToken?: string;
+  error?: string;
+};
+
+// ── Next.js API Route 設定 ───────────────────────────
 export const config = {
   api: { bodyParser: false, sizeLimit: "4mb" },
 };
 
+// ── ルートハンドラ本体 ────────────────────────────────
 export default async function uploadHandler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   if (req.method !== "POST") return res.status(405).end("Method Not Allowed");
 
-  const session = await getServerSession(req, res, authOptions);
-  if (!session?.accessToken) return res.status(401).end("Unauthorized");
+  /* (1) 認可チェック */
+  const session = (await getServerSession(
+    req,
+    res,
+    authOptions
+  )) as ExtendedSession;
+
+  if (!session?.accessToken)
+    return res.status(401).end("Unauthorized (no token)");
   if (session.error === "RefreshAccessTokenError")
     return res.status(401).end("Token expired — please sign‑in again");
 
-  let tempPath: string | undefined;
+  let tmpPath: string | undefined;
   try {
+    /* (2) multipart/form-data を解析 */
     const file: FormidableFile = await new Promise((resolve, reject) => {
       formidable({ allowEmptyFiles: true, maxFiles: 1 }).parse(
         req,
@@ -39,12 +51,13 @@ export default async function uploadHandler(
           if (err) return reject(err);
           const f = Array.isArray(files.file) ? files.file[0] : files.file;
           if (!f) return reject(new Error("No file field"));
-          tempPath = f.filepath;
+          tmpPath = f.filepath;
           resolve(f);
         }
       );
     });
 
+    /* (3) Google Drive へアップロード */
     const oauth = new google.auth.OAuth2();
     oauth.setCredentials({ access_token: session.accessToken });
     const drive = google.drive({ version: "v3", auth: oauth });
@@ -71,6 +84,6 @@ export default async function uploadHandler(
     console.error("[upload] error", err);
     return res.status(500).json({ error: "Upload failed" });
   } finally {
-    if (tempPath) fs.unlink(tempPath).catch(() => null);
+    if (tmpPath) fs.unlink(tmpPath).catch(() => null);
   }
 }
