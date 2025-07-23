@@ -1,8 +1,10 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import type { JWT } from "next-auth/jwt";
+import type { Session } from "next-auth";
 
 /*───────────────── Google トークン自動更新 ─────────────────*/
-async function refreshGoogleToken(token: any) {
+async function refreshGoogleToken(token: JWT): Promise<JWT> {
   try {
     const url =
       "https://oauth2.googleapis.com/token?" +
@@ -10,7 +12,7 @@ async function refreshGoogleToken(token: any) {
         client_id: process.env.GOOGLE_CLIENT_ID!,
         client_secret: process.env.GOOGLE_CLIENT_SECRET!,
         grant_type: "refresh_token",
-        refresh_token: token.refreshToken,
+        refresh_token: token.refreshToken as string,
       });
 
     const res = await fetch(url, {
@@ -23,7 +25,7 @@ async function refreshGoogleToken(token: any) {
     return {
       ...token,
       accessToken: refreshed.access_token,
-      expiresAt: Date.now() + refreshed.expires_in * 1000, // ms
+      expiresAt: Date.now() + refreshed.expires_in * 1000,
       refreshToken: refreshed.refresh_token ?? token.refreshToken,
     };
   } catch (err) {
@@ -64,10 +66,19 @@ export const authOptions: NextAuthOptions = {
       return refreshGoogleToken(token);
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken as string | undefined;
-      session.error = (token as any).error;
+      (session as Session & {
+        accessToken?: string;
+        error?: string;
+      }).accessToken = token.accessToken as string | undefined;
+
+      (session as Session & {
+        accessToken?: string;
+        error?: string;
+      }).error = (token as JWT & { error?: string }).error;
+
       return session;
     },
   },
 };
+
 export default NextAuth(authOptions);
