@@ -1,16 +1,15 @@
-import { signIn, signOut } from "next-auth/react";
-import { getServerSession } from "next-auth/next";
-import type { GetServerSideProps } from "next";
-import type { Session } from "next-auth";
-import { authOptions } from "./api/auth/[...nextauth]";
-import { useState, FormEvent } from "react";
+import { signIn, signOut, useSession } from "next-auth/react";
+import { useState, useEffect, FormEvent } from "react";
 
-type Props = { session: Session | null };
-
-export default function Home({ session }: Props) {
+export default function Home() {
+  const { data: session } = useSession();
   const [isUploading, setIsUploading] = useState(false);
 
-  /* ファイル登録処理 */
+  // トークン更新失敗時は自動リダイレクト
+  useEffect(() => {
+    if (session?.error === "RefreshAccessTokenError") signIn("google");
+  }, [session]);
+
   const handleUpload = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fileInput = e.currentTarget.elements.namedItem(
@@ -24,7 +23,11 @@ export default function Home({ session }: Props) {
 
     try {
       setIsUploading(true);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+        credentials: "same-origin",
+      });
       if (!res.ok) throw new Error(await res.text());
       const { fileId } = (await res.json()) as { fileId: string };
       alert(`登録成功！ファイル ID: ${fileId}`);
@@ -35,8 +38,7 @@ export default function Home({ session }: Props) {
     }
   };
 
-  /* 未ログイン画面 */
-  if (!session) {
+  if (!session)
     return (
       <main className="flex flex-col items-center gap-4 py-10">
         <h1 className="text-xl font-bold">マイドライブへの登録</h1>
@@ -48,9 +50,7 @@ export default function Home({ session }: Props) {
         </button>
       </main>
     );
-  }
 
-  /* ログイン済み画面 */
   return (
     <main className="flex flex-col items-center gap-4 py-10">
       <h1 className="text-xl font-bold">マイドライブへの登録</h1>
@@ -76,9 +76,3 @@ export default function Home({ session }: Props) {
     </main>
   );
 }
-
-/* -------- サーバーサイドでセッション注入 -------- */
-export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
-  const session = await getServerSession(ctx.req, ctx.res, authOptions);
-  return { props: { session } };
-};
